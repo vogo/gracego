@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -22,10 +23,12 @@ const (
 
 var (
 	listener      net.Listener
-	graceServer   GraceServer
+	server        GraceServer
 	graceForkArgs []string
 	pidFilePath   string
+	serverDir     string
 	serverBin     string
+	serverBinPath string
 	serverName    string
 	serverAddr    string
 	serverForked  bool
@@ -38,10 +41,17 @@ type GraceServer interface {
 }
 
 //StartServer start grace server
-func Start(server GraceServer, name, addr string) error {
+func Start(svr GraceServer, name, addr string) error {
 	serverAddr = addr
 	serverName = name
-	graceServer = server
+	server = svr
+
+	serverBinPath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	log.Println(serverBinPath)
+	serverDir = filepath.Dir(serverBinPath)
 
 	serverBin = os.Args[0]
 	graceForkArgs = os.Args[1:]
@@ -82,7 +92,7 @@ func startServer() error {
 	}
 
 	go func() {
-		err = graceServer.Serve(listener)
+		err = server.Serve(listener)
 		if err != nil {
 			log.Printf("server.Serve end! %v\n", err)
 			os.Exit(1)
@@ -101,29 +111,36 @@ func handleSignal() {
 		sig := <-ch
 		log.Printf("signal: %v\n", sig)
 
-		ctx, _ := context.WithTimeout(context.Background(), forkTimeout)
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
 			log.Println("start shutdown server")
 			signal.Stop(ch)
-			_ = graceServer.Shutdown(ctx)
-			log.Println("graceful shutdown")
-
-			_ = os.Remove(pidFilePath)
+			_ = shutdown()
 			return
 		case syscall.SIGHUP:
-			err := restart()
-			if err != nil {
-				log.Printf("graceful restart failed: %v\n", err)
-			}
-			_ = graceServer.Shutdown(ctx)
-			log.Println("graceful reload")
+			_ = restart()
 			return
 		}
 	}
 }
 
+func shutdown() error {
+	ctx, _ := context.WithTimeout(context.Background(), forkTimeout)
+	_ = os.Remove(pidFilePath)
+	return server.Shutdown(ctx)
+}
+
 func restart() error {
+	ctx, _ := context.WithTimeout(context.Background(), forkTimeout)
+	err := fork()
+	if err != nil {
+		log.Printf("graceful restart failed: %v\n", err)
+		return err
+	}
+	return server.Shutdown(ctx)
+}
+
+func fork() error {
 	tl, ok := listener.(*net.TCPListener)
 	if !ok {
 		return fmt.Errorf("listener is not tcp listener")
