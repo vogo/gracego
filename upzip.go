@@ -23,25 +23,27 @@ func unzip(src, dest string) error {
 	for _, f := range r.File {
 
 		// Store filename/path for returning and using later on
-		fpath := filepath.Join(dest, f.Name)
+		filePath := filepath.Join(dest, f.Name)
 
 		// Check for ZipSlip
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("%s: illegal file path", fpath)
+		if !strings.HasPrefix(filePath, filepath.Clean(dest)+string(os.PathSeparator)) {
+			return fmt.Errorf("%s: illegal file path", filePath)
 		}
 
 		if f.FileInfo().IsDir() {
 			// Make Folder
-			os.MkdirAll(fpath, os.ModePerm)
+			if err = os.MkdirAll(filePath, os.ModePerm); err != nil {
+				return err
+			}
 			continue
 		}
 
 		// Make File
-		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+		if err = os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
 			return err
 		}
 
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
 			return err
 		}
@@ -55,7 +57,7 @@ func unzip(src, dest string) error {
 
 		// Close the file without defer to close before next iteration of loop
 		outFile.Close()
-		rc.Close()
+		_ = rc.Close()
 
 		if err != nil {
 			return err

@@ -109,11 +109,10 @@ func handleSignal() {
 
 	for {
 		sig := <-ch
-		log.Printf("signal: %v\n", sig)
+		log.Printf("receive signal: %v\n", sig)
 
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
-			log.Println("start shutdown server")
 			signal.Stop(ch)
 			_ = shutdown()
 			return
@@ -125,28 +124,33 @@ func handleSignal() {
 }
 
 func shutdown() error {
-	ctx, _ := context.WithTimeout(context.Background(), forkTimeout)
+	log.Println("start shutdown server")
+	ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
+	defer cancel()
+
 	_ = os.Remove(pidFilePath)
 	return server.Shutdown(ctx)
 }
 
 func restart() error {
-	ctx, _ := context.WithTimeout(context.Background(), forkTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
+	defer cancel()
+
 	err := fork()
 	if err != nil {
-		log.Printf("graceful restart failed: %v\n", err)
+		log.Printf("failed to fork child process: %v\n", err)
 		return err
 	}
 	return server.Shutdown(ctx)
 }
 
 func fork() error {
-	tl, ok := listener.(*net.TCPListener)
+	tcpListener, ok := listener.(*net.TCPListener)
 	if !ok {
 		return fmt.Errorf("listener is not tcp listener")
 	}
 
-	listenFile, err := tl.File()
+	listenFile, err := tcpListener.File()
 	if err != nil {
 		return err
 	}
@@ -167,13 +171,14 @@ func updatePidFile() {
 	if err != nil {
 		pidFile, err = os.Create(pidFilePath)
 		if err != nil {
-			panic(err)
+			log.Printf("failed to create pid file %s, error: %v\n", pidFilePath, err)
+			return
 		}
 	}
 	defer pidFile.Close()
 
 	_, err = pidFile.WriteString(pid)
 	if err != nil {
-		log.Printf("write pid error: %v\n", err)
+		log.Printf("failed to write pid file %s, error: %v\n", pidFilePath, err)
 	}
 }

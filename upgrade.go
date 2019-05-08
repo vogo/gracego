@@ -44,14 +44,14 @@ func upgradeServerBin(version, path, upgradeUrl string) error {
 	}
 
 	fileName := uri[index+1:]
-	if ! acceptFileSuffix(fileName) {
+	if !acceptFileSuffix(fileName) {
 		return fmt.Errorf("invalid suffix for download url: %s", upgradeUrl)
 	}
 
 	upgradeBin := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, path)
 	_, err = os.Open(upgradeBin)
 	if err == nil {
-		return link(upgradeBin, serverBin)
+		return link(upgradeBin, serverBinPath)
 	}
 
 	downloadPath := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, fileName)

@@ -19,7 +19,7 @@ var (
 func main() {
 	http.HandleFunc("/hello", HelloHandler)
 	http.HandleFunc("/download.zip", DownloadHandler)
-	http.HandleFunc("/graceup", UpgradeHandler)
+	http.HandleFunc("/upgrade", UpgradeHandler)
 	server = &http.Server{}
 
 	err := gracego.Start(server, "echo", listenAddr)
