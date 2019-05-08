@@ -13,16 +13,20 @@ import (
 	"strings"
 )
 
-//Upgrade graceup server
+//Upgrade gracefully upgrade server
+// - version: the new version of the server
+// - path: the relative path of the command in the upgrade compress file
+// - upgradeUrl: the url of the upgrade file, which must be a zip format file with a suffix `.jar` or `.zip`
 func Upgrade(version, path, upgradeUrl string) error {
-	if err := upgradeServerBin(version, path, upgradeUrl); err != nil {
+	if err := upgradeServerCmd(version, path, upgradeUrl); err != nil {
 		return err
 	}
-	return restart()
+	go restart()
+	return nil
 }
 
-//upgradeServerBin graceup server bin file
-func upgradeServerBin(version, path, upgradeUrl string) error {
+//upgradeServerCmd graceup server bin file
+func upgradeServerCmd(version, path, upgradeUrl string) error {
 	if server == nil || serverBin == "" {
 		return errors.New("server not started")
 	}
@@ -48,10 +52,11 @@ func upgradeServerBin(version, path, upgradeUrl string) error {
 		return fmt.Errorf("invalid suffix for download url: %s", upgradeUrl)
 	}
 
-	upgradeBin := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, path)
-	_, err = os.Open(upgradeBin)
+	upgradeCmd := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, path)
+	_, err = os.Open(upgradeCmd)
 	if err == nil {
-		return link(upgradeBin, serverBinPath)
+		fmt.Println("found upgrade command file: ", upgradeCmd)
+		return link(upgradeCmd, serverCmdPath)
 	}
 
 	downloadPath := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, fileName)
@@ -65,11 +70,12 @@ func upgradeServerBin(version, path, upgradeUrl string) error {
 		return err
 	}
 
-	return link(upgradeBin, serverBinPath)
+	return link(upgradeCmd, serverCmdPath)
 }
 
 func link(src string, dest string) error {
 	_ = os.Remove(dest)
+	log.Printf("link %s to %s", src, dest)
 	return os.Link(src, dest)
 }
 
@@ -79,8 +85,9 @@ func acceptFileSuffix(f string) bool {
 
 // downloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
-func downloadFile(filepath string, url string) error {
-	_ = os.Remove(filepath)
+func downloadFile(filePath string, url string) error {
+	log.Printf("download %s to %s", url, filePath)
+	_ = os.Remove(filePath)
 
 	// Get the data
 	resp, err := http.Get(url)
@@ -90,7 +97,7 @@ func downloadFile(filepath string, url string) error {
 	defer resp.Body.Close()
 
 	// Create the file
-	out, err := os.Create(filepath)
+	out, err := os.Create(filePath)
 	if err != nil {
 		log.Printf("can't create file: %v", err)
 		return err

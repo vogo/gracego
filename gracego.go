@@ -28,10 +28,12 @@ var (
 	pidFilePath   string
 	serverDir     string
 	serverBin     string
-	serverBinPath string
+	serverCmdPath string
 	serverName    string
 	serverAddr    string
 	serverForked  bool
+
+	shutdownChan = make(chan error, 1)
 )
 
 //GraceServer serve net listener
@@ -40,18 +42,19 @@ type GraceServer interface {
 	Shutdown(ctx context.Context) error
 }
 
-//StartServer start grace server
-func Start(svr GraceServer, name, addr string) error {
-	serverAddr = addr
-	serverName = name
-	server = svr
-
-	serverBinPath, err := os.Executable()
+//Serve serve grace server
+func Serve(svr GraceServer, name, addr string) error {
+	var err error
+	serverCmdPath, err = os.Executable()
 	if err != nil {
 		return err
 	}
-	log.Println(serverBinPath)
-	serverDir = filepath.Dir(serverBinPath)
+	log.Println("start ", serverCmdPath)
+	serverDir = filepath.Dir(serverCmdPath)
+
+	serverAddr = addr
+	serverName = name
+	server = svr
 
 	serverBin = os.Args[0]
 	graceForkArgs = os.Args[1:]
@@ -66,11 +69,11 @@ func Start(svr GraceServer, name, addr string) error {
 		graceForkArgs = append(graceForkArgs, forkCommandArg)
 	}
 
-	return startServer()
+	return serveServer()
 }
 
-//startServer start grace server
-func startServer() error {
+//serveServer start grace server
+func serveServer() error {
 	var err error
 
 	pidFilePath = fmt.Sprintf("%s%s.pid", os.TempDir(), serverName)
@@ -95,53 +98,61 @@ func startServer() error {
 		err = server.Serve(listener)
 		if err != nil {
 			log.Printf("server.Serve end! %v\n", err)
-			os.Exit(1)
 		}
 	}()
 
 	handleSignal()
+	log.Printf("serve end for pid %d", os.Getpid())
 	return nil
 }
 
 func handleSignal() {
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	var sig os.Signal
 
 	for {
-		sig := <-ch
+		select {
+		case sig = <-signalChan:
+			break
+		case err := <-shutdownChan:
+			if err != nil {
+				log.Printf("shutdown error: %v", err)
+			}
+			return
+		}
+
 		log.Printf("receive signal: %v\n", sig)
 
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
-			signal.Stop(ch)
-			_ = shutdown()
+			signal.Stop(signalChan)
+			shutdown()
 			return
 		case syscall.SIGHUP:
-			_ = restart()
+			restart()
 			return
 		}
 	}
 }
 
-func shutdown() error {
+func shutdown() {
 	log.Println("start shutdown server")
 	ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
 	defer cancel()
 
 	_ = os.Remove(pidFilePath)
-	return server.Shutdown(ctx)
+	shutdownChan <- server.Shutdown(ctx)
 }
 
-func restart() error {
-	ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
-	defer cancel()
-
+func restart() {
 	err := fork()
 	if err != nil {
-		log.Printf("failed to fork child process: %v\n", err)
-		return err
+		log.Printf("failed to restart! fork child process error: %v\n", err)
+		return
 	}
-	return server.Shutdown(ctx)
+	shutdown()
 }
 
 func fork() error {

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"github.com/vogo/gracego"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -18,19 +20,44 @@ var (
 
 func main() {
 	http.HandleFunc("/hello", HelloHandler)
+	http.HandleFunc("/sleep5s", SleepHandler)
+	http.HandleFunc("/calculate5s", CalculateHandler)
 	http.HandleFunc("/download.zip", DownloadHandler)
 	http.HandleFunc("/upgrade", UpgradeHandler)
+
 	server = &http.Server{}
 
-	err := gracego.Start(server, "echo", listenAddr)
+	err := gracego.Serve(server, "echo", listenAddr)
 	if err != nil {
-		fmt.Printf("failed to start server: %v\n", err)
+		fmt.Printf("server error: %v\n", err)
 	}
 }
 
 //HelloHandler handle hello request
 func HelloHandler(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte("world"))
+	response(w, 200, "world")
+}
+
+//SleepHandler handle sleep request
+func SleepHandler(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(5 * time.Second)
+	response(w, 200, "world")
+}
+
+//CalculateHandler handle calculation request
+func CalculateHandler(w http.ResponseWriter, r *http.Request) {
+	fiveSecondCalc()
+	response(w, 200, "world")
+}
+
+// the calculation will cost about 5.89s for 2.3 GHz Intel Core i5
+func fiveSecondCalc() {
+	for i := 0; i < math.MaxInt16; i++ {
+		for j := 0; j < 1<<13; j++ {
+			math.Sin(float64(i))
+			math.Cos(float64(i))
+		}
+	}
 }
 
 //DownloadHandler download the graceup server zip
@@ -63,9 +90,13 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		responseError(w, err)
 	}
+	response(w, 200, "success")
 }
 
 func responseError(w http.ResponseWriter, err error) {
-	w.WriteHeader(500)
-	_, _ = w.Write([]byte(err.Error()))
+	response(w, 500, err.Error())
+}
+func response(w http.ResponseWriter, code int, msg string) {
+	w.WriteHeader(code)
+	_, _ = w.Write([]byte(msg))
 }
