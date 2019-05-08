@@ -1,4 +1,4 @@
-**gracego enables gracefully restart or upgrade golang application.**
+# `gracego` enables gracefully restart or upgrade golang application.
 
 ## Usage
 
