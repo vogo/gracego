@@ -1,6 +1,8 @@
 
 build:
-		go build -o echo
+		mkdir build
+		go build -o build/echo
 
 zip: build
-		zip echo.zip echo
+		rm -f echo.zip
+		cd build; zip echo.zip echo
