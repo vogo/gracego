@@ -27,7 +27,12 @@ func main() {
 
 	server = &http.Server{}
 
-	err := gracego.Serve(server, "echo", listenAddr)
+	err := gracego.EnableWritePid("/tmp")
+	if err != nil {
+		fmt.Printf("write pid error: %v\n", err)
+	}
+
+	err = gracego.Serve(server, "echo", listenAddr)
 	if err != nil {
 		fmt.Printf("server error: %v\n", err)
 	}

@@ -26,7 +26,6 @@ var (
 	listener      net.Listener
 	server        GraceServer
 	graceForkArgs []string
-	pidFilePath   string
 	serverDir     string
 	serverBin     string
 	serverCmdPath string
@@ -59,7 +58,6 @@ func Serve(svr GraceServer, name, addr string) error {
 	if err != nil {
 		return err
 	}
-	log.Println("start ", serverCmdPath)
 	serverDir = filepath.Dir(serverCmdPath)
 
 	serverAddr = addr
@@ -86,21 +84,19 @@ func Serve(svr GraceServer, name, addr string) error {
 func serveServer() error {
 	var err error
 
-	pidFilePath = fmt.Sprintf("%s%s.pid", os.TempDir(), serverName)
-	log.Printf("pid file: %s\n", pidFilePath)
-	updatePidFile()
+	writePidFile()
 
 	if serverForked {
-		log.Println("listening in forked child ...")
+		log.Printf("listen in forked child, pid %d", os.Getpid())
 
 		f := os.NewFile(3, "")
 		listener, err = net.FileListener(f)
 	} else {
-		log.Println("listening ...")
+		log.Printf("listen at %s, pid %d", serverAddr, os.Getpid())
 		listener, err = net.Listen("tcp", serverAddr)
 	}
 	if err != nil {
-		log.Printf("listening failed: %v\n", err)
+		log.Printf("listen failed: %v\n", err)
 		return err
 	}
 
@@ -112,7 +108,7 @@ func serveServer() error {
 	}()
 
 	handleSignal()
-	log.Printf("serve end for pid %d", os.Getpid())
+	log.Printf("serve end, pid %d", os.Getpid())
 	return nil
 }
 
@@ -152,7 +148,10 @@ func shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
 	defer cancel()
 
-	_ = os.Remove(pidFilePath)
+	if enableWritePid {
+		_ = os.Remove(pidFilePath)
+	}
+
 	shutdownChan <- shutdownServer(server, ctx)
 }
 
@@ -192,24 +191,4 @@ func fork() error {
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{listenFile}
 	return cmd.Start()
-}
-
-func updatePidFile() {
-	pid := fmt.Sprint(os.Getpid())
-	log.Printf("pid: %s\n", pid)
-
-	pidFile, err := os.OpenFile(pidFilePath, os.O_RDWR, 0660)
-	if err != nil {
-		pidFile, err = os.Create(pidFilePath)
-		if err != nil {
-			log.Printf("failed to create pid file %s, error: %v\n", pidFilePath, err)
-			return
-		}
-	}
-	defer pidFile.Close()
-
-	_, err = pidFile.WriteString(pid)
-	if err != nil {
-		log.Printf("failed to write pid file %s, error: %v\n", pidFilePath, err)
-	}
 }
