@@ -4,6 +4,7 @@ package gracego
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -39,7 +40,16 @@ var (
 //GraceServer serve net listener
 type GraceServer interface {
 	Serve(listener net.Listener) error
+}
+
+//GraceShutdowner support shutdown
+type GraceShutdowner interface {
 	Shutdown(ctx context.Context) error
+}
+
+//Shutdowner support shutdown
+type Shutdowner interface {
+	Shutdown() error
 }
 
 //Serve serve grace server
@@ -143,7 +153,17 @@ func shutdown() {
 	defer cancel()
 
 	_ = os.Remove(pidFilePath)
-	shutdownChan <- server.Shutdown(ctx)
+	shutdownChan <- shutdownServer(server, ctx)
+}
+
+func shutdownServer(s GraceServer, ctx context.Context) error {
+	if st, ok := s.(GraceShutdowner); ok {
+		return st.Shutdown(ctx)
+	}
+	if st, ok := s.(Shutdowner); ok {
+		return st.Shutdown()
+	}
+	return errors.New("server shutdown unsupported")
 }
 
 func restart() {
