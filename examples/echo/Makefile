@@ -1,6 +1,7 @@
 clean:
 		rm -rf build
 		mkdir build
+
 build: clean
 		go build -o build/echo
 
