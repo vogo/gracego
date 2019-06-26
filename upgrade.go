@@ -96,6 +96,20 @@ func downloadFile(filePath string, url string) error {
 	}
 	defer resp.Body.Close()
 
+	switch resp.StatusCode {
+	case 200:
+	case 404:
+		return fmt.Errorf("file not found: %s", url)
+	default:
+		buf := make([]byte, 1024)
+		result := ""
+		if n, readErr := resp.Body.Read(buf); n > 0 && readErr == nil {
+			result = string(buf[:n])
+		}
+
+		return fmt.Errorf("download failed, status code: %d, result: %s", resp.StatusCode, result)
+	}
+
 	// Create the file
 	out, err := os.Create(filePath)
 	if err != nil {
