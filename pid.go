@@ -4,7 +4,6 @@ package gracego
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
@@ -44,14 +43,14 @@ func writePidFile() {
 	if pidFilePath == "" {
 
 		pidFilePath = fmt.Sprintf("%s%s.pid", pidFileDir, serverName)
-		log.Printf("set pid file: %s\n", pidFilePath)
+		info("set pid file: %s", pidFilePath)
 	}
 
 	pidFile, err := os.OpenFile(pidFilePath, os.O_RDWR, 0660)
 	if err != nil {
 		pidFile, err = os.Create(pidFilePath)
 		if err != nil {
-			log.Printf("failed to create pid file %s, error: %v\n", pidFilePath, err)
+			info("failed to create pid file %s, error: %v", pidFilePath, err)
 			return
 		}
 	}
@@ -60,6 +59,6 @@ func writePidFile() {
 	pid := fmt.Sprint(os.Getpid())
 	_, err = pidFile.WriteString(pid)
 	if err != nil {
-		log.Printf("failed to write pid file %s, error: %v\n", pidFilePath, err)
+		info("failed to write pid file %s, error: %v", pidFilePath, err)
 	}
 }

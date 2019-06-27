@@ -30,12 +30,12 @@ func main() {
 
 	err := gracego.EnableWritePid("/tmp")
 	if err != nil {
-		fmt.Printf("write pid error: %v\n", err)
+		fmt.Printf("write pid error: %v", err)
 	}
 
 	err = gracego.Serve(server, "echo", listenAddr)
 	if err != nil {
-		fmt.Printf("server error: %v\n", err)
+		fmt.Printf("server error: %v", err)
 	}
 }
 

@@ -18,7 +18,7 @@ func main() {
 
 	err := gracego.Serve(server, "demo", ":8080")
 	if err != nil {
-		fmt.Printf("server error: %v\n", err)
+		fmt.Printf("server error: %v", err)
 	}
 }
 ```

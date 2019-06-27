@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -33,7 +32,9 @@ var (
 	serverAddr    string
 	serverForked  bool
 
-	shutdownChan = make(chan error, 1)
+	shutdownChan  = make(chan error, 1)
+	version       = time.Now().Unix()
+	versionPrefix = fmt.Sprintf("[%d]", version)
 )
 
 //GraceServer serve net listener
@@ -87,28 +88,28 @@ func serveServer() error {
 	writePidFile()
 
 	if serverForked {
-		log.Printf("listen in forked child, pid %d", os.Getpid())
+		info("listen in forked child, pid %d", os.Getpid())
 
 		f := os.NewFile(3, "")
 		listener, err = net.FileListener(f)
 	} else {
-		log.Printf("listen at %s, pid %d", serverAddr, os.Getpid())
+		info("listen at %s, pid %d", serverAddr, os.Getpid())
 		listener, err = net.Listen("tcp", serverAddr)
 	}
 	if err != nil {
-		log.Printf("listen failed: %v\n", err)
+		info("listen failed: %v", err)
 		return err
 	}
 
 	go func() {
 		err = server.Serve(listener)
 		if err != nil {
-			log.Printf("server.Serve end! %v\n", err)
+			info("server.Serve end! %v", err)
 		}
 	}()
 
 	handleSignal()
-	log.Printf("serve end, pid %d", os.Getpid())
+	info("serve end, pid %d", os.Getpid())
 	return nil
 }
 
@@ -121,15 +122,14 @@ func handleSignal() {
 	for {
 		select {
 		case sig = <-signalChan:
-			break
 		case err := <-shutdownChan:
 			if err != nil {
-				log.Printf("shutdown error: %v", err)
+				info("shutdown error: %v", err)
 			}
 			return
 		}
 
-		log.Printf("receive signal: %v\n", sig)
+		info("receive signal: %v", sig)
 
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
@@ -144,7 +144,7 @@ func handleSignal() {
 }
 
 func shutdown() {
-	log.Println("start shutdown server")
+	info("start shutdown server")
 	ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
 	defer cancel()
 
@@ -168,7 +168,7 @@ func shutdownServer(s GraceServer, ctx context.Context) error {
 func restart() {
 	err := fork()
 	if err != nil {
-		log.Printf("failed to restart! fork child process error: %v\n", err)
+		info("failed to restart! fork child process error: %v", err)
 		return
 	}
 	shutdown()
@@ -185,7 +185,7 @@ func fork() error {
 		return err
 	}
 
-	log.Printf("restart server %s: %s %s\n", serverName, serverBin, strings.Join(graceForkArgs, " "))
+	info("restart server %s: %s %s", serverName, serverBin, strings.Join(graceForkArgs, " "))
 	cmd := exec.Command(serverBin, graceForkArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -75,7 +74,7 @@ func upgradeServerCmd(version, path, upgradeUrl string) error {
 
 func link(src string, dest string) error {
 	_ = os.Remove(dest)
-	log.Printf("link %s to %s", src, dest)
+	info("link %s to %s", src, dest)
 	return os.Link(src, dest)
 }
 
@@ -86,7 +85,7 @@ func acceptFileSuffix(f string) bool {
 // downloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
 func downloadFile(filePath string, url string) error {
-	log.Printf("download %s to %s", url, filePath)
+	info("download %s to %s", url, filePath)
 	_ = os.Remove(filePath)
 
 	// Get the data
@@ -113,7 +112,7 @@ func downloadFile(filePath string, url string) error {
 	// Create the file
 	out, err := os.Create(filePath)
 	if err != nil {
-		log.Printf("can't create file: %v", err)
+		info("can't create file: %v", err)
 		return err
 	}
 	defer out.Close()
