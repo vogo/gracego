@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"time"
@@ -32,9 +33,8 @@ var (
 	serverAddr    string
 	serverForked  bool
 
-	shutdownChan  = make(chan error, 1)
-	version       = time.Now().Unix()
-	versionPrefix = fmt.Sprintf("[%d]", version)
+	shutdownChan = make(chan error, 1)
+	serverID     = int(time.Now().Unix())
 )
 
 //GraceServer serve net listener
@@ -50,6 +50,11 @@ type GraceShutdowner interface {
 //Shutdowner support shutdown
 type Shutdowner interface {
 	Shutdown() error
+}
+
+// GetServerID get server id
+func GetServerID() int {
+	return serverID
 }
 
 //Serve serve grace server
@@ -88,7 +93,7 @@ func serveServer() error {
 	writePidFile()
 
 	if serverForked {
-		info("listen in forked child, pid %d", os.Getpid())
+		info("listen in forked child at %s, pid %d", serverAddr, os.Getpid())
 
 		f := os.NewFile(3, "")
 		listener, err = net.FileListener(f)
@@ -109,7 +114,7 @@ func serveServer() error {
 	}()
 
 	handleSignal()
-	info("serve end, pid %d", os.Getpid())
+	info("server end, pid %d", os.Getpid())
 	return nil
 }
 
@@ -144,25 +149,28 @@ func handleSignal() {
 }
 
 func shutdown() {
-	info("start shutdown server")
-	ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
-	defer cancel()
-
 	if enableWritePid {
 		_ = os.Remove(pidFilePath)
 	}
 
-	shutdownChan <- shutdownServer(server, ctx)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
+		defer cancel()
+		shutdownChan <- shutdownServer(server, ctx)
+	}()
 }
 
 func shutdownServer(s GraceServer, ctx context.Context) error {
-	if st, ok := s.(GraceShutdowner); ok {
+	info("start shutdown server %s", reflect.TypeOf(s))
+	defer info("finish shutdown server %s", reflect.TypeOf(s))
+	switch st := s.(type) {
+	case GraceShutdowner:
 		return st.Shutdown(ctx)
-	}
-	if st, ok := s.(Shutdowner); ok {
+	case Shutdowner:
 		return st.Shutdown()
+	default:
+		return errors.New("server shutdown unsupported")
 	}
-	return errors.New("server shutdown unsupported")
 }
 
 func restart() {

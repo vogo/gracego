@@ -8,5 +8,5 @@ import (
 )
 
 func info(format string, args ...interface{}) {
-	log.Println(versionPrefix, fmt.Sprintf(format, args...))
+	log.Println(serverID, "-", fmt.Sprintf(format, args...))
 }

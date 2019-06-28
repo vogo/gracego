@@ -54,7 +54,7 @@ func upgradeServerCmd(version, path, upgradeUrl string) error {
 	upgradeCmd := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, path)
 	_, err = os.Open(upgradeCmd)
 	if err == nil {
-		fmt.Println("found upgrade command file: ", upgradeCmd)
+		info("found upgrade command file: %s", upgradeCmd)
 		return link(upgradeCmd, serverCmdPath)
 	}
 
