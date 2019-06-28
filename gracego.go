@@ -138,6 +138,7 @@ func handleSignal() {
 			if err != nil {
 				info("shutdown error: %v", err)
 			}
+			close(shutdownChan)
 			return
 		}
 
@@ -160,10 +161,14 @@ func shutdown() {
 		_ = os.Remove(pidFilePath)
 	}
 
+	go func() {
+		shutdownChan <- shutdownServer(server)
+	}()
+
 	select {
 	case <-time.After(shutdownTimeout + time.Second):
 		shutdownChan <- fmt.Errorf("shutdown timeout over %d seconds", shutdownTimeout/time.Second)
-	case shutdownChan <- shutdownServer(server):
+	case <-shutdownChan:
 	}
 }
 
