@@ -19,7 +19,6 @@ import (
 
 const (
 	forkCommandArg = "-grace-forked"
-	forkTimeout    = 20 * time.Second
 )
 
 var (
@@ -33,8 +32,9 @@ var (
 	serverAddr    string
 	serverForked  bool
 
-	shutdownChan = make(chan error, 1)
-	serverID     = int(time.Now().Unix())
+	shutdownChan    = make(chan error, 1)
+	serverID        = int(time.Now().Unix())
+	shutdownTimeout = 10 * time.Second
 )
 
 //GraceServer serve net listener
@@ -55,6 +55,13 @@ type Shutdowner interface {
 // GetServerID get server id
 func GetServerID() int {
 	return serverID
+}
+
+// SetShutdownTimeout set the server shutdown timeout duration
+func SetShutdownTimeout(d time.Duration) {
+	if d > 0 {
+		shutdownTimeout = d
+	}
 }
 
 //Serve serve grace server
@@ -153,18 +160,20 @@ func shutdown() {
 		_ = os.Remove(pidFilePath)
 	}
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), forkTimeout)
-		defer cancel()
-		shutdownChan <- shutdownServer(server, ctx)
-	}()
+	select {
+	case <-time.After(shutdownTimeout + time.Second):
+		shutdownChan <- fmt.Errorf("shutdown timeout over %d seconds", shutdownTimeout/time.Second)
+	case shutdownChan <- shutdownServer(server):
+	}
 }
 
-func shutdownServer(s GraceServer, ctx context.Context) error {
+func shutdownServer(s GraceServer) error {
 	info("start shutdown server %s", reflect.TypeOf(s))
 	defer info("finish shutdown server %s", reflect.TypeOf(s))
 	switch st := s.(type) {
 	case GraceShutdowner:
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
 		return st.Shutdown(ctx)
 	case Shutdowner:
 		return st.Shutdown()
