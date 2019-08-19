@@ -43,14 +43,14 @@ func writePidFile() {
 	if pidFilePath == "" {
 
 		pidFilePath = fmt.Sprintf("%s%s.pid", pidFileDir, serverName)
-		info("set pid file: %s", pidFilePath)
+		graceLog("set pid file: %s", pidFilePath)
 	}
 
 	pidFile, err := os.OpenFile(pidFilePath, os.O_RDWR, 0660)
 	if err != nil {
 		pidFile, err = os.Create(pidFilePath)
 		if err != nil {
-			info("failed to create pid file %s, error: %v", pidFilePath, err)
+			graceLog("failed to create pid file %s, error: %v", pidFilePath, err)
 			return
 		}
 	}
@@ -59,6 +59,6 @@ func writePidFile() {
 	pid := fmt.Sprint(os.Getpid())
 	_, err = pidFile.WriteString(pid)
 	if err != nil {
-		info("failed to write pid file %s, error: %v", pidFilePath, err)
+		graceLog("failed to write pid file %s, error: %v", pidFilePath, err)
 	}
 }

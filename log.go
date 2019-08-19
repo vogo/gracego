@@ -7,6 +7,6 @@ import (
 	"log"
 )
 
-func info(format string, args ...interface{}) {
-	log.Println(serverID, "-", fmt.Sprintf(format, args...))
+func graceLog(format string, args ...interface{}) {
+	log.Println("GRAC", serverID, fmt.Sprintf(format, args...))
 }

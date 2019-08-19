@@ -54,7 +54,7 @@ func upgradeServerCmd(version, path, upgradeUrl string) error {
 	upgradeCmd := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, path)
 	_, err = os.Open(upgradeCmd)
 	if err == nil {
-		info("found upgrade command file: %s", upgradeCmd)
+		graceLog("found upgrade command file: %s", upgradeCmd)
 		return link(upgradeCmd, serverCmdPath)
 	}
 
@@ -74,7 +74,7 @@ func upgradeServerCmd(version, path, upgradeUrl string) error {
 
 func link(src string, dest string) error {
 	_ = os.Remove(dest)
-	info("link %s to %s", src, dest)
+	graceLog("link %s to %s", src, dest)
 	return os.Link(src, dest)
 }
 
@@ -85,7 +85,7 @@ func acceptFileSuffix(f string) bool {
 // downloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
 func downloadFile(filePath string, url string) error {
-	info("download %s to %s", url, filePath)
+	graceLog("download %s to %s", url, filePath)
 	_ = os.Remove(filePath)
 
 	// Get the data
@@ -112,7 +112,7 @@ func downloadFile(filePath string, url string) error {
 	// Create the file
 	out, err := os.Create(filePath)
 	if err != nil {
-		info("can't create file: %v", err)
+		graceLog("can't create file: %v", err)
 		return err
 	}
 	defer out.Close()
