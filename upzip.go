@@ -20,8 +20,12 @@ func unzip(src, dest string) error {
 	}
 	defer r.Close()
 
-	for _, f := range r.File {
+	// Make File
+	if err := os.MkdirAll(dest, os.ModePerm); err != nil {
+		return err
+	}
 
+	for _, f := range r.File {
 		// Store filename/path for returning and using later on
 		filePath := filepath.Join(dest, f.Name)
 
@@ -32,15 +36,10 @@ func unzip(src, dest string) error {
 
 		if f.FileInfo().IsDir() {
 			// Make Folder
-			if err = os.MkdirAll(filePath, os.ModePerm); err != nil {
+			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
 				return err
 			}
 			continue
-		}
-
-		// Make File
-		if err = os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			return err
 		}
 
 		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())

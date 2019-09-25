@@ -9,57 +9,48 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-//Upgrade gracefully upgrade server
+// Upgrade gracefully upgrade server
 // - version: the new version of the server
 // - path: the relative path of the command in the upgrade compress file
 // - upgradeUrl: the url of the upgrade file, which must be a zip format file with a suffix `.jar` or `.zip`
-func Upgrade(version, path, upgradeUrl string) error {
-	if err := upgradeServerCmd(version, path, upgradeUrl); err != nil {
+func Upgrade(version, path, upgradeURL string) error {
+	if err := upgradeServerCmd(version, path, upgradeURL); err != nil {
 		return err
 	}
 	go restart()
 	return nil
 }
 
-//upgradeServerCmd graceup server bin file
-func upgradeServerCmd(version, path, upgradeUrl string) error {
+// upgradeServerCmd grace up server bin file
+func upgradeServerCmd(version, path, upgradeURL string) error {
 	if server == nil || serverBin == "" {
 		return errors.New("server not started")
 	}
 
-	versionDir := fmt.Sprintf("%s%c%s", serverDir, os.PathSeparator, version)
+	versionDir := filepath.Join(serverDir, version)
 	err := os.Mkdir(versionDir, 0770)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		return err
 	}
 
-	u, err := url.Parse(upgradeUrl)
+	fileName, err := parseFileName(upgradeURL)
 	if err != nil {
 		return err
 	}
-	uri := u.RequestURI()
-	index := strings.LastIndex(uri, "/")
-	if index < 0 {
-		return fmt.Errorf("invalid download url: %s", upgradeUrl)
-	}
 
-	fileName := uri[index+1:]
-	if !acceptFileSuffix(fileName) {
-		return fmt.Errorf("invalid suffix for download url: %s", upgradeUrl)
-	}
-
-	upgradeCmd := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, path)
+	upgradeCmd := filepath.Join(versionDir, path)
 	_, err = os.Open(upgradeCmd)
 	if err == nil {
 		graceLog("found upgrade command file: %s", upgradeCmd)
 		return link(upgradeCmd, serverCmdPath)
 	}
 
-	downloadPath := fmt.Sprintf("%s%c%s", versionDir, os.PathSeparator, fileName)
-	err = downloadFile(downloadPath, upgradeUrl)
+	downloadPath := filepath.Join(versionDir, fileName)
+	err = downloadFile(downloadPath, upgradeURL)
 	if err != nil {
 		return err
 	}
@@ -72,7 +63,25 @@ func upgradeServerCmd(version, path, upgradeUrl string) error {
 	return link(upgradeCmd, serverCmdPath)
 }
 
-func link(src string, dest string) error {
+func parseFileName(upgradeURL string) (string, error) {
+	u, err := url.Parse(upgradeURL)
+	if err != nil {
+		return "", err
+	}
+	uri := u.RequestURI()
+	index := strings.LastIndex(uri, "/")
+	if index < 0 {
+		return "", fmt.Errorf("invalid download url: %s", u)
+	}
+
+	fileName := uri[index+1:]
+	if !acceptFileSuffix(fileName) {
+		return "", fmt.Errorf("invalid suffix for download url: %s", u)
+	}
+	return fileName, nil
+}
+
+func link(src, dest string) error {
 	_ = os.Remove(dest)
 	graceLog("link %s to %s", src, dest)
 	return os.Link(src, dest)
@@ -84,12 +93,17 @@ func acceptFileSuffix(f string) bool {
 
 // downloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
-func downloadFile(filePath string, url string) error {
-	graceLog("download %s to %s", url, filePath)
+func downloadFile(filePath, upgradeURL string) error {
+	u, err := url.Parse(upgradeURL)
+	if err != nil {
+		return err
+	}
+
+	graceLog("download %s to %s", upgradeURL, filePath)
 	_ = os.Remove(filePath)
 
 	// Get the data
-	resp, err := http.Get(url)
+	resp, err := http.Get(u.String())
 	if err != nil {
 		return err
 	}
@@ -98,7 +112,7 @@ func downloadFile(filePath string, url string) error {
 	switch resp.StatusCode {
 	case 200:
 	case 404:
-		return fmt.Errorf("file not found: %s", url)
+		return fmt.Errorf("file not found: %s", upgradeURL)
 	default:
 		buf := make([]byte, 1024)
 		result := ""

@@ -14,15 +14,13 @@ var (
 	pidFilePath    string
 )
 
-//EnableWritePid enable to write pid file
-//dir - the directory where to write pid file
+// EnableWritePid enable to write pid file
+// dir - the directory where to write pid file
 func EnableWritePid(dir string) error {
 	if dir == "" {
 		dir = os.TempDir()
-	} else {
-		if _, err := os.Stat(dir); err != nil {
-			return err
-		}
+	} else if _, err := os.Stat(dir); err != nil {
+		return err
 	}
 
 	if !strings.HasSuffix(dir, string(os.PathSeparator)) {
@@ -41,7 +39,6 @@ func writePidFile() {
 	}
 
 	if pidFilePath == "" {
-
 		pidFilePath = fmt.Sprintf("%s%s.pid", pidFileDir, serverName)
 		graceLog("set pid file: %s", pidFilePath)
 	}

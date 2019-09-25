@@ -37,17 +37,17 @@ var (
 	shutdownTimeout = 10 * time.Second
 )
 
-//GraceServer serve net listener
+// GraceServer serve net listener
 type GraceServer interface {
 	Serve(listener net.Listener) error
 }
 
-//GraceShutdowner support shutdown
+// GraceShutdowner support shutdown
 type GraceShutdowner interface {
 	Shutdown(ctx context.Context) error
 }
 
-//Shutdowner support shutdown
+// Shutdowner support shutdown
 type Shutdowner interface {
 	Shutdown() error
 }
@@ -64,7 +64,7 @@ func SetShutdownTimeout(d time.Duration) {
 	}
 }
 
-//Serve serve grace server
+// Serve serve grace server
 func Serve(svr GraceServer, name, addr string) error {
 	var err error
 	serverCmdPath, err = os.Executable()
@@ -93,7 +93,7 @@ func Serve(svr GraceServer, name, addr string) error {
 	return serveServer()
 }
 
-//serveServer start grace server
+// serveServer start grace server
 func serveServer() error {
 	var err error
 
@@ -110,11 +110,18 @@ func serveServer() error {
 
 		// wait for address being released
 		if err != nil && IsAddrUsedErr(err) {
-			graceLog("wait %d seconds for error: %v", addrInUseWaitSecond, err)
-			<-time.After(time.Second * time.Duration(addrInUseWaitSecond))
-			listener, err = net.Listen("tcp", serverAddr)
+			f, borrowErr := borrow(serverAddr)
+			if borrowErr != nil {
+				graceLog("borrow fd fail: %v", borrowErr)
+				graceLog("wait %d seconds to release address: %s", addrInUseWaitSecond, serverAddr)
+				<-time.After(time.Second * time.Duration(addrInUseWaitSecond))
+				listener, err = net.Listen("tcp", serverAddr)
+			} else {
+				listener, err = net.FileListener(f)
+			}
 		}
 	}
+
 	if err != nil {
 		graceLog("listen failed: %v", err)
 		return err
@@ -134,7 +141,7 @@ func serveServer() error {
 
 func handleSignal() {
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGUSR1)
 
 	var sig os.Signal
 
@@ -158,6 +165,15 @@ func handleSignal() {
 			return
 		case syscall.SIGHUP:
 			restart()
+			return
+		case syscall.SIGUSR1:
+			graceLog("receive borrow listener request")
+			if err := borrowSend(); err != nil {
+				graceLog("borrow send error: %v", err)
+				continue
+			}
+
+			// end server
 			return
 		}
 	}
@@ -204,12 +220,7 @@ func restart() {
 }
 
 func fork() error {
-	tcpListener, ok := listener.(*net.TCPListener)
-	if !ok {
-		return fmt.Errorf("listener is not tcp listener")
-	}
-
-	listenFile, err := tcpListener.File()
+	listenFile, err := listenFile()
 	if err != nil {
 		return err
 	}
@@ -220,4 +231,13 @@ func fork() error {
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{listenFile}
 	return cmd.Start()
+}
+
+func listenFile() (f *os.File, err error) {
+	tcpListener, ok := listener.(*net.TCPListener)
+	if !ok {
+		return nil, fmt.Errorf("listener is not tcp listener")
+	}
+
+	return tcpListener.File()
 }

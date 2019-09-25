@@ -4,7 +4,7 @@
 package gracego
 
 var (
-	addrInUseWaitSecond = 10
+	addrInUseWaitSecond = 5
 )
 
 func SetAddrInUseWaitSecond(seconds int) {
