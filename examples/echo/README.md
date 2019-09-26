@@ -15,6 +15,9 @@ ln echo myecho
 # start echo server
 ./myecho
 
+# start a new server to replace the old
+./myecho
+
 # restart through signal
 ps -ef |grep -v grep |grep echo
 kill -HUP <PID>

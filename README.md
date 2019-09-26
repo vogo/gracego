@@ -44,4 +44,4 @@ if err != nil {
 
 ## Examples
 
-- [echo](examples/echo/README.md): example to shutdown, restart and upgrade gracefully
+- [echo](examples/echo/README.md): example to shutdown, restart, upgrade, replace application gracefully
