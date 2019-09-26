@@ -13,7 +13,7 @@ import (
 )
 
 func getBorrowSockFile(pid int) string {
-	return filepath.Join(os.TempDir(), fmt.Sprintf("grace_borrow_request_%d.sock", pid))
+	return filepath.Join(os.TempDir(), fmt.Sprintf("gracego_borrow_%d.sock", pid))
 }
 
 func borrow(addr string) (*os.File, error) {

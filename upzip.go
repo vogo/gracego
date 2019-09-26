@@ -1,10 +1,10 @@
 // Copyright 2019 The vogo Authors. All rights reserved.
+// author: wongoo
 
 package gracego
 
 import (
 	"archive/zip"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,42 +25,46 @@ func unzip(src, dest string) error {
 		return err
 	}
 
-	for _, f := range r.File {
-		// Store filename/path for returning and using later on
-		filePath := filepath.Join(dest, f.Name)
-
+	for _, zipFile := range r.File {
 		// Check for ZipSlip
-		if !strings.HasPrefix(filePath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("%s: illegal file path", filePath)
-		}
+		fileName := strings.ReplaceAll(zipFile.Name, "..", "")
 
-		if f.FileInfo().IsDir() {
-			// Make Folder
-			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-				return err
-			}
+		if fileName != zipFile.Name {
+			graceLog("ignore zip file: %s", zipFile.Name)
 			continue
 		}
 
-		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			return err
-		}
+		targetPath := filepath.Join(dest, fileName)
 
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(outFile, rc)
-
-		// Close the file without defer to close before next iteration of loop
-		outFile.Close()
-		_ = rc.Close()
-
-		if err != nil {
+		if err := writeZipFile(targetPath, zipFile); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func writeZipFile(targetPath string, f *zip.File) error {
+	if f.FileInfo().IsDir() {
+		if err := os.MkdirAll(targetPath, os.ModePerm); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	outFile, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	if err != nil {
+		return err
+	}
+
+	rc, err := f.Open()
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(outFile, rc)
+
+	outFile.Close()
+	_ = rc.Close()
+
+	return err
 }
