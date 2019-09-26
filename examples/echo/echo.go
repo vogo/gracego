@@ -80,7 +80,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dir := filepath.Dir(path)
-	zipFilePath := fmt.Sprintf("%s%c%s", dir, os.PathSeparator, "echo.zip")
+	zipFilePath := filepath.Join(dir, "echo.zip")
 	file, err := os.OpenFile(zipFilePath, os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		responseError(w, err)
