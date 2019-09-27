@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	forkCommandArg = "-grace-forked"
+	ForkCommandArg = "-grace-forked"
 )
 
 var (
@@ -82,13 +82,13 @@ func Serve(svr GraceServer, name, addr string) error {
 	graceForkArgs = os.Args[1:]
 	serverForked = false
 	for _, arg := range graceForkArgs {
-		if arg == forkCommandArg {
+		if arg == ForkCommandArg {
 			serverForked = true
 			break
 		}
 	}
 	if !serverForked {
-		graceForkArgs = append(graceForkArgs, forkCommandArg)
+		graceForkArgs = append(graceForkArgs, ForkCommandArg)
 	}
 
 	return serveServer()
@@ -133,6 +133,9 @@ func serveServer() error {
 		if err != nil {
 			graceLog("server.Serve end! %v", err)
 		}
+
+		// close shutdown chan to stop signal waiting
+		close(shutdownChan)
 	}()
 
 	handleSignal()
@@ -162,7 +165,7 @@ func handleSignal() {
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
 			signal.Stop(signalChan)
-			shutdown()
+			Shutdown()
 			return
 		case syscall.SIGHUP:
 			restart()
@@ -180,7 +183,12 @@ func handleSignal() {
 	}
 }
 
-func shutdown() {
+// Shutdown graceful server
+func Shutdown() {
+	if server == nil {
+		return
+	}
+
 	if enableWritePid {
 		_ = os.Remove(pidFilePath)
 	}
@@ -217,7 +225,7 @@ func restart() {
 		graceLog("failed to restart! fork child process error: %v", err)
 		return
 	}
-	shutdown()
+	Shutdown()
 }
 
 func fork() error {
