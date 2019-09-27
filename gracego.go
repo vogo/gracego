@@ -165,7 +165,7 @@ func handleSignal() {
 		switch sig {
 		case syscall.SIGINT, syscall.SIGTERM:
 			signal.Stop(signalChan)
-			Shutdown()
+			_ = Shutdown()
 			return
 		case syscall.SIGHUP:
 			restart()
@@ -184,9 +184,9 @@ func handleSignal() {
 }
 
 // Shutdown graceful server
-func Shutdown() {
+func Shutdown() error {
 	if server == nil {
-		return
+		return errors.New("server not start")
 	}
 
 	if enableWritePid {
@@ -202,6 +202,8 @@ func Shutdown() {
 		shutdownChan <- fmt.Errorf("shutdown timeout over %d seconds", shutdownTimeout/time.Second)
 	case <-shutdownChan:
 	}
+
+	return nil
 }
 
 func shutdownServer(s GraceServer) error {
@@ -225,7 +227,7 @@ func restart() {
 		graceLog("failed to restart! fork child process error: %v", err)
 		return
 	}
-	Shutdown()
+	_ = Shutdown()
 }
 
 func fork() error {
