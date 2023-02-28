@@ -40,20 +40,20 @@ func main() {
 	}
 }
 
-//HelloHandler handle hello request
+// HelloHandler handle hello request
 func HelloHandler(w http.ResponseWriter, r *http.Request) {
 	info("request hello")
 	response(w, 200, "world")
 }
 
-//SleepHandler handle sleep request
+// SleepHandler handle sleep request
 func SleepHandler(w http.ResponseWriter, r *http.Request) {
 	info("request sleep")
 	time.Sleep(5 * time.Second)
 	response(w, 200, "world")
 }
 
-//CalculateHandler handle calculation request
+// CalculateHandler handle calculation request
 func CalculateHandler(w http.ResponseWriter, r *http.Request) {
 	info("request calculate")
 	fiveSecondCalc()
@@ -70,7 +70,7 @@ func fiveSecondCalc() {
 	}
 }
 
-//DownloadHandler download the graceup server zip
+// DownloadHandler download the graceup server zip
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	info("request download")
 	path, err := os.Executable()
@@ -95,7 +95,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//UpgradeHandler restart server
+// UpgradeHandler restart server
 func UpgradeHandler(w http.ResponseWriter, r *http.Request) {
 	info("request upgrade")
 	err := gracego.Upgrade("v2", "echo", "http://127.0.0.1"+listenAddr+"/download.zip")
