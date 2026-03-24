@@ -46,10 +46,10 @@ func borrowFromPid(pid int) (*os.File, error) {
 	borrowSockFile := getBorrowSockFile(pid)
 
 	ticker := time.NewTicker(time.Millisecond * 100)
+	defer ticker.Stop()
 	for i := 0; i < 20 && !existFile(borrowSockFile); i++ {
 		<-ticker.C
 	}
-	ticker.Stop()
 
 	borrowConn, err := net.Dial("unix", borrowSockFile)
 	if err != nil {

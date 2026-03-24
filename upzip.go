@@ -26,15 +26,15 @@ func unzip(src, dest string) error {
 	}
 
 	for _, zipFile := range r.File {
-		// Check for ZipSlip
-		fileName := strings.ReplaceAll(zipFile.Name, "..", "")
+		// Check for ZipSlip: ensure the file is within the destination directory
+		targetPath := filepath.Join(dest, zipFile.Name)
+		targetPath = filepath.Clean(targetPath)
+		destClean := filepath.Clean(dest)
 
-		if fileName != zipFile.Name {
-			graceLog("ignore zip file: %s", zipFile.Name)
+		if !strings.HasPrefix(targetPath, destClean+string(os.PathSeparator)) && targetPath != destClean {
+			graceLog("ignore zip file (ZipSlip): %s", zipFile.Name)
 			continue
 		}
-
-		targetPath := filepath.Join(dest, fileName)
 
 		if err := writeZipFile(targetPath, zipFile); err != nil {
 			return err

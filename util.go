@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strconv"
@@ -65,7 +64,7 @@ func checkSameBinProcess(pid int) (string, bool) {
 func getCommandline(pid int) (string, error) {
 	linuxCmdlineFile := fmt.Sprintf("/proc/%d/cmdline", pid)
 	if existFile(linuxCmdlineFile) {
-		data, err := ioutil.ReadFile(linuxCmdlineFile)
+		data, err := os.ReadFile(linuxCmdlineFile)
 		if err != nil {
 			return "", err
 		}

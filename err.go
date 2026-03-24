@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-func IsAddrUsedErr(err error) bool {
+func IsAddrInUseError(err error) bool {
 	opErr, ok := err.(*net.OpError)
 	if !ok {
 		return false

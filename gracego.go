@@ -110,7 +110,7 @@ func serveServer() error {
 		listener, err = net.Listen("tcp", serverAddr)
 
 		// wait for address being released
-		if err != nil && IsAddrUsedErr(err) {
+		if err != nil && IsAddrInUseError(err) {
 			f, borrowErr := borrow(serverAddr)
 			if borrowErr != nil {
 				graceLog("borrow fd fail: %v", borrowErr)
@@ -134,8 +134,11 @@ func serveServer() error {
 			graceLog("server.Serve end! %v", err)
 		}
 
-		// close shutdown chan to stop signal waiting
-		close(shutdownChan)
+		// send nil to shutdown chan to stop signal waiting
+		select {
+		case shutdownChan <- nil:
+		default:
+		}
 	}()
 
 	handleSignal()
@@ -156,7 +159,6 @@ func handleSignal() {
 			if err != nil {
 				graceLog("shutdown error: %v", err)
 			}
-			close(shutdownChan)
 			return
 		}
 
